@@ -4,7 +4,6 @@
 
 // This is using Deno Deploy, a distributed system that runs JavaScript, TypeScript, and WebAssembly at the edge.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { Resend } from "https://esm.sh/resend@1.0.0"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -26,9 +25,6 @@ serve(async (req) => {
     if (!resendApiKey) {
       throw new Error("RESEND_API_KEY is not set in environment variables")
     }
-    
-    // Initialize Resend with the API key
-    const resend = new Resend(resendApiKey)
     
     // Parse the request body if it exists
     let emailData = {
@@ -56,24 +52,33 @@ serve(async (req) => {
     
     console.log(`Sending email to ${emailData.to}`)
     
-    // Send the email using Resend
-    const { data, error } = await resend.emails.send({
-      from: "no-reply@updates.trytadam.com",
-      to: emailData.to,
-      subject: emailData.subject,
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #333; font-size: 24px;">${emailData.subject}</h1>
-          <p style="color: #666; font-size: 16px; line-height: 1.5;">${emailData.message}</p>
-          <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #eee;">
-            <p style="color: #999; font-size: 14px;">This is an automated message from your application.</p>
+    // Send the email using Resend API directly
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: "no-reply@updates.trytadam.com",
+        to: emailData.to,
+        subject: emailData.subject,
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+            <h1 style="color: #333; font-size: 24px;">${emailData.subject}</h1>
+            <p style="color: #666; font-size: 16px; line-height: 1.5;">${emailData.message}</p>
+            <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #eee;">
+              <p style="color: #999; font-size: 14px;">This is an automated message from your application.</p>
+            </div>
           </div>
-        </div>
-      `,
+        `
+      })
     })
     
-    if (error) {
-      throw new Error(`Failed to send email: ${error.message}`)
+    const result = await response.json()
+    
+    if (!response.ok) {
+      throw new Error(`Failed to send email: ${result.message || response.statusText}`)
     }
     
     // Return success response
@@ -82,7 +87,7 @@ serve(async (req) => {
         success: true,
         message: "Email sent successfully",
         data: {
-          emailId: data?.id,
+          emailId: result.id,
           recipient: emailData.to,
           timestamp: new Date().toISOString()
         }
