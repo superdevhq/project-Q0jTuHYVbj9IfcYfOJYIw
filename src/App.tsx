@@ -9,6 +9,7 @@ import NotFound from "./pages/NotFound";
 import FileUploadDemo from "./pages/FileUploadDemo";
 import HelloWorldDemo from "./pages/HelloWorldDemo";
 import EmailDemo from "./pages/EmailDemo";
+import SupabaseFileUploadDemo from "./pages/SupabaseFileUploadDemo";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +24,7 @@ const App = () => (
           <Route path="/file-upload" element={<FileUploadDemo />} />
           <Route path="/hello-world" element={<HelloWorldDemo />} />
           <Route path="/email" element={<EmailDemo />} />
+          <Route path="/supabase-upload" element={<SupabaseFileUploadDemo />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

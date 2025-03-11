@@ -12,13 +12,16 @@ const Index = () => {
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
           <Button asChild size="lg" variant="default">
-            <Link to="/file-upload">File Upload Demo</Link>
+            <Link to="/file-upload">File Upload UI</Link>
           </Button>
           <Button asChild size="lg" variant="outline">
             <Link to="/hello-world">Edge Function Demo</Link>
           </Button>
           <Button asChild size="lg" variant="secondary">
             <Link to="/email">Email Sending Demo</Link>
+          </Button>
+          <Button asChild size="lg" variant="destructive">
+            <Link to="/supabase-upload">Supabase Storage Upload</Link>
           </Button>
         </div>
       </div>
