@@ -28,60 +28,54 @@ export function SupabaseFileUpload({
   const [uploadedFiles, setUploadedFiles] = useState<Array<{ path: string; url: string }>>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [bucketStatus, setBucketStatus] = useState<'checking' | 'creating' | 'ready' | 'error'>('checking');
+  const [isInitializing, setIsInitializing] = useState(true);
 
-  // Check if bucket exists and create it if it doesn't
+  // Initialize component and check for existing files
   useEffect(() => {
-    const checkAndCreateBucket = async () => {
+    const initializeComponent = async () => {
       try {
-        setBucketStatus('checking');
+        setIsInitializing(true);
+        setError(null);
         
-        // Check if bucket exists
-        const { data: buckets, error: listError } = await supabase.storage.listBuckets();
-        
-        if (listError) {
-          throw new Error(`Error checking buckets: ${listError.message}`);
-        }
-        
-        const bucketExists = buckets.some(bucket => bucket.name === bucketName);
-        
-        if (!bucketExists) {
-          setBucketStatus('creating');
-          console.log(`Bucket "${bucketName}" does not exist. Creating...`);
+        // Try to list files in the bucket to check if it exists and is accessible
+        if (folderPath) {
+          const { data, error } = await supabase.storage
+            .from(bucketName)
+            .list(folderPath);
           
-          // Create the bucket with public access
-          const { error: createError } = await supabase.storage.createBucket(bucketName, {
-            public: true,
-            fileSizeLimit: maxSize
-          });
-          
-          if (createError) {
-            throw new Error(`Error creating bucket: ${createError.message}`);
+          if (error) {
+            console.error(`Error listing files in ${folderPath}:`, error);
+          } else if (data) {
+            // If there are files in the folder path, load them
+            const filesInFolder = data.filter(item => !item.id.endsWith('/')); // Filter out folders
+            
+            if (filesInFolder.length > 0) {
+              const existingFiles = filesInFolder.map(file => {
+                const filePath = folderPath ? `${folderPath}/${file.name}` : file.name;
+                const { data: { publicUrl } } = supabase.storage
+                  .from(bucketName)
+                  .getPublicUrl(filePath);
+                
+                return { path: filePath, url: publicUrl };
+              });
+              
+              setUploadedFiles(existingFiles);
+            }
           }
-          
-          console.log(`Bucket "${bucketName}" created successfully.`);
-        } else {
-          console.log(`Bucket "${bucketName}" already exists.`);
         }
-        
-        setBucketStatus('ready');
       } catch (err) {
-        console.error("Error with bucket setup:", err);
-        setError(err instanceof Error ? err.message : "An unknown error occurred with storage setup");
-        setBucketStatus('error');
+        console.error("Error initializing component:", err);
+        setError(err instanceof Error ? err.message : "An unknown error occurred during initialization");
+      } finally {
+        setIsInitializing(false);
       }
     };
     
-    checkAndCreateBucket();
-  }, [bucketName, maxSize]);
+    initializeComponent();
+  }, [bucketName, folderPath]);
 
   // Handle file upload to Supabase Storage
   const handleFilesAdded = async (files: File[]) => {
-    if (bucketStatus !== 'ready') {
-      setError("Storage is not ready yet. Please wait a moment and try again.");
-      return;
-    }
-    
     setIsLoading(true);
     setError(null);
     
@@ -174,37 +168,20 @@ export function SupabaseFileUpload({
     }
   }, [bucketName]);
 
-  // Render loading state while checking/creating bucket
-  if (bucketStatus === 'checking' || bucketStatus === 'creating') {
+  // Render loading state while initializing
+  if (isInitializing) {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-center p-8 border-2 border-dashed rounded-lg">
           <div className="text-center">
             <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-            <p className="font-medium">
-              {bucketStatus === 'checking' ? 'Checking storage...' : 'Setting up storage...'}
-            </p>
+            <p className="font-medium">Initializing storage...</p>
             <p className="text-sm text-muted-foreground mt-2">
-              {bucketStatus === 'checking' 
-                ? 'Verifying if storage bucket exists' 
-                : `Creating "${bucketName}" storage bucket`}
+              Connecting to Supabase Storage
             </p>
           </div>
         </div>
       </div>
-    );
-  }
-
-  // Render error state if bucket setup failed
-  if (bucketStatus === 'error') {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Storage Setup Failed</AlertTitle>
-        <AlertDescription>
-          {error || `Could not set up the "${bucketName}" storage bucket. Please try again later.`}
-        </AlertDescription>
-      </Alert>
     );
   }
 
